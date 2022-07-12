@@ -3,8 +3,10 @@ package main
 import "C"
 import (
 	"context"
-	"log"
+	"fmt"
+	"os"
 	"reflect"
+	"time"
 	"unsafe"
 
 	"github.com/tetratelabs/wazero"
@@ -26,22 +28,69 @@ func run_wazero(binaryPtr uintptr, binarySize int) {
 	// Choose the context to use for function calls.
 	ctx := context.Background()
 
-	runtimes := []wazero.Runtime{
-		wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfigCompiler().WithWasmCore2()),
-		wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfigInterpreter().WithWasmCore2()),
-	}
+	compiler := wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfigCompiler().WithWasmCore2())
+	interpreter := wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfigInterpreter().WithWasmCore2())
 
-	defer runtimes[0].Close(ctx)
-	defer runtimes[1].Close(ctx)
-
-	for _, r := range runtimes {
-		_, err := r.InstantiateModuleFromBinary(ctx, wasmBin)
-		if err != nil {
-			log.Panicln(err)
+	var failed = true
+	defer func() {
+		if failed {
+			saveFailedBinary(wasmBin)
 		}
+	}()
 
-		// Invokes all the functions.
-		//fmt.Println(mod)
+	compilerRes, compilerErr := run(ctx, compiler, wasmBin)
+	interpreterRes, interpreterErr := run(ctx, interpreter, wasmBin)
+
+	if compilerErr != interpreterErr {
+		panic(fmt.Sprintf("error mismatch: compiler got: '%v', but interpreter got '%v'\n", compilerErr, interpreterErr))
 	}
+
+	if len(compilerRes) != len(interpreterRes) {
+		panic(fmt.Sprintf("result length mismatch: compiler got %d results, but interpreter %d results\n", len(compilerRes), len(interpreterRes)))
+	}
+
+	for i, cr := range compilerRes {
+		ir := interpreterRes[i]
+		if cr != ir {
+			panic(fmt.Sprintf("result mismatch: compiler got %v, but interpreter got %v\n", compilerRes, interpreterRes))
+		}
+	}
+
+	failed = false
 	return
+}
+
+func run(ctx context.Context, r wazero.Runtime, bin []byte) (result []uint64, err error) {
+	defer func() {
+		err = r.Close(ctx)
+	}()
+
+	_, err = r.InstantiateModuleFromBinary(ctx, bin)
+	if err != nil {
+		return
+	}
+
+	// TODO: Invokes all the functions.
+
+	return
+}
+
+const failedCasesDir = "./cases"
+
+func saveFailedBinary(bin []byte) {
+	path := fmt.Sprintf("%s/%d.wasm", failedCasesDir, time.Now().Nanosecond())
+	f, err := os.Create(path)
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer f.Close()
+
+	_, err = f.Write(bin)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("failed Wasm binary has been written to %s\n", path)
 }

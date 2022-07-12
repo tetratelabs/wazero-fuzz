@@ -24,6 +24,17 @@ fn run(data: &[u8]) -> Result<()> {
     config.max_imports = 0;
     // If we don't set the limit, we will soon reach the OOM and the fuzzing will be killed by OS.
     config.max_memory_pages = 10;
+    // Don't test too large tables.
+    config.max_tables = 2;
+    config.max_table_elements = 1_000;
+    config.table_max_size_required = true;
+
+    // Export all the things so that we can invoke them.
+    config.export_everything = true;
+
+    // Ensures that at least one function exists.
+    config.min_funcs = 1;
+    config.max_funcs = config.max_funcs.max(1);
 
     // Generate the random module via wasm-smith.
     let module_byte = wasm_smith::Module::new(config.clone(), &mut u)?.to_bytes();
