@@ -6,7 +6,7 @@ and [libFuzzer](https://llvm.org/docs/LibFuzzer.html).
 ### Dependency
 
 - [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
-    Needs to enable nightly (for libFuzzer).
+  - Needs to enable nightly (for libFuzzer).
 - [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz)
   - `cargo install cargo-fuzz`
 
