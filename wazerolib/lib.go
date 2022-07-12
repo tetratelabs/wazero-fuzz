@@ -13,6 +13,9 @@ import (
 func main() {}
 
 //export run_wazero
+//
+// run_wazero ensures that the behavior is the same between the compiler and the interpreter for any given
+// binary.
 func run_wazero(binaryPtr uintptr, binarySize int) {
 	wasmBin := *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
 		Data: binaryPtr,
