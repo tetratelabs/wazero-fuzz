@@ -4,7 +4,7 @@ use std::str;
 
 fn main() {
     // Get the absolute path to the root of this repository (not cargo target).
-    let wazero_fuzz_dir = format!("{}/..",var("CARGO_MANIFEST_DIR").unwrap());
+    let wazero_fuzz_dir = format!("{}/..", var("CARGO_MANIFEST_DIR").unwrap());
 
     let wazero_fuzz_lib_dir = format!("{}/wazerolib", wazero_fuzz_dir.as_str());
     let library_out_path = format!("{}/libwazero.a", wazero_fuzz_lib_dir);
@@ -18,9 +18,7 @@ fn main() {
     command.args(&["-o", library_out_path.as_str()]);
     command.args(&[library_source_path.as_str()]);
 
-    let output = command.
-        output().
-        expect("failed to execute process");
+    let output = command.output().expect("failed to execute process");
 
     // If the build didn't succeed, exit the process with the stderr from Go's command.
     if !output.status.success() {
@@ -31,9 +29,9 @@ fn main() {
     }
 
     // Ensures that we rebuild the library when the source code for wazero file has been changed.
-    println!("cargo:rerun-if-changed={}",library_source_path);
-    println!("cargo:rerun-if-changed={}/go.mod",wazero_fuzz_lib_dir);
-    println!("cargo:rerun-if-changed={}/go.sum",wazero_fuzz_lib_dir);
+    println!("cargo:rerun-if-changed={}", library_source_path);
+    println!("cargo:rerun-if-changed={}/go.mod", wazero_fuzz_dir);
+    println!("cargo:rerun-if-changed={}/go.sum", wazero_fuzz_dir);
 
     // Ensures that the linker can find the wazero library.
     println!("cargo:rustc-link-search={}", wazero_fuzz_lib_dir);

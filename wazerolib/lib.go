@@ -3,10 +3,11 @@ package main
 import "C"
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"reflect"
-	"time"
 	"unsafe"
 
 	"github.com/tetratelabs/wazero"
@@ -75,12 +76,14 @@ func run(ctx context.Context, r wazero.Runtime, bin []byte) (result []uint64, er
 	return
 }
 
-const failedCasesDir = "./cases"
+const failedCasesDir = "wazerolib/testdata"
 
 func saveFailedBinary(bin []byte) {
-	path := fmt.Sprintf("%s/%d.wasm", failedCasesDir, time.Now().Nanosecond())
-	f, err := os.Create(path)
+	checksum := sha256.Sum256(bin)
+	checkSumStr := hex.EncodeToString(checksum[:])
 
+	path := fmt.Sprintf("%s/%s.wasm", failedCasesDir, checkSumStr)
+	f, err := os.Create(path)
 	if err != nil {
 		panic(err)
 	}
@@ -92,5 +95,10 @@ func saveFailedBinary(bin []byte) {
 		panic(err)
 	}
 
-	fmt.Printf("failed Wasm binary has been written to %s\n", path)
+	fmt.Printf(`
+
+Failed Wasm binary has been written as %[1]s.wasm
+To reproduce the failure, execute: WASM_BINARY_NAME=%[1]s.wasm go test wazerolib/...
+
+`, checkSumStr)
 }
