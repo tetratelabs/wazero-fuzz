@@ -33,6 +33,8 @@ fn main() {
     println!("cargo:rerun-if-changed={}/go.mod", wazero_fuzz_dir);
     println!("cargo:rerun-if-changed={}/go.sum", wazero_fuzz_dir);
 
+    println!("cargo:rerun-if-changed=/Users/mathetake/wazero");
+
     // Ensures that the linker can find the wazero library.
     println!("cargo:rustc-link-search={}", wazero_fuzz_lib_dir);
     println!("cargo:rustc-link-lib=static=wazero");

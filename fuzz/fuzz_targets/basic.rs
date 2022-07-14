@@ -37,11 +37,13 @@ fn run(data: &[u8]) -> Result<()> {
     config.max_funcs = config.max_funcs.max(1);
 
     // Generate the random module via wasm-smith.
-    let module_byte = wasm_smith::Module::new(config.clone(), &mut u)?.to_bytes();
+    let mut module = wasm_smith::Module::new(config.clone(), &mut u)?;
+    module.ensure_termination(1000);
+    let module_bytes = module.to_bytes();
 
     // Pass the randomly generated module to the wazero library.
     unsafe {
-        run_wazero(module_byte.as_ptr(), module_byte.len());
+        run_wazero(module_bytes.as_ptr(), module_bytes.len());
     }
 
     // We always return Ok as inside of run_wazero, we cause panic if the binary is interesting.
