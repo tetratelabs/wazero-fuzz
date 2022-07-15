@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 	"strings"
 	"testing"
 
@@ -13,9 +12,9 @@ import (
 
 // TestReRunFailedCase re-runs the failed case specified by WASM_BINARY_NAME in testdata directory.
 func TestReRunFailedCase(t *testing.T) {
-	binaryHash := os.Getenv("WASM_BINARY_NAME")
+	binaryPath := os.Getenv("WASM_BINARY_PATH")
 
-	wasmBin, err := os.ReadFile(path.Join("testdata", binaryHash))
+	wasmBin, err := os.ReadFile(binaryPath)
 	if err != nil {
 		t.Fatal(err)
 	}

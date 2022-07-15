@@ -24,6 +24,7 @@ fn run(data: &[u8]) -> Result<()> {
     config.max_imports = 0;
     // If we don't set the limit, we will soon reach the OOM and the fuzzing will be killed by OS.
     config.max_memory_pages = 10;
+    config.memory_max_size_required = true;
     // Don't test too large tables.
     config.max_tables = 2;
     config.max_table_elements = 1_000;
@@ -41,9 +42,16 @@ fn run(data: &[u8]) -> Result<()> {
     module.ensure_termination(1000);
     let module_bytes = module.to_bytes();
 
+    let wat_bytes = wasmprinter::print_bytes(&module_bytes).unwrap();
+
     // Pass the randomly generated module to the wazero library.
     unsafe {
-        run_wazero(module_bytes.as_ptr(), module_bytes.len());
+        run_wazero(
+            module_bytes.as_ptr(),
+            module_bytes.len(),
+            wat_bytes.as_ptr(),
+            wat_bytes.len(),
+        );
     }
 
     // We always return Ok as inside of run_wazero, we cause panic if the binary is interesting.
@@ -52,5 +60,5 @@ fn run(data: &[u8]) -> Result<()> {
 
 extern "C" {
     // run_wazero is implemented in Go, and accepts the pointer to the binary and its size.
-    fn run_wazero(binary_ptr: *const u8, binary_size: usize);
+    fn run_wazero(binary_ptr: *const u8, binary_size: usize, wat_ptr: *const u8, wat_size: usize);
 }

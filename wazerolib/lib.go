@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path"
 	"reflect"
 	"strings"
 	"unsafe"
@@ -31,11 +32,17 @@ func allowedErrorDuringInstantiation(errMsg string) bool {
 //
 // run_wazero ensures that the behavior is the same between the compiler and the interpreter for any given
 // binary.
-func run_wazero(binaryPtr uintptr, binarySize int) {
+func run_wazero(binaryPtr uintptr, binarySize int, watPtr uintptr, watSize int) {
 	wasmBin := *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
 		Data: binaryPtr,
 		Len:  binarySize,
 		Cap:  binarySize,
+	}))
+
+	wat := *(*string)(unsafe.Pointer(&reflect.SliceHeader{
+		Data: watPtr,
+		Len:  watSize,
+		Cap:  watSize,
 	}))
 
 	// Choose the context to use for function calls.
@@ -51,7 +58,7 @@ func run_wazero(binaryPtr uintptr, binarySize int) {
 	var failed = true
 	defer func() {
 		if failed {
-			saveFailedBinary(wasmBin)
+			saveFailedBinary(wasmBin, wat)
 		}
 	}()
 
@@ -99,12 +106,18 @@ func ensureInstantiationError(compilerErr, interpErr error) error {
 
 const failedCasesDir = "wazerolib/testdata"
 
-func saveFailedBinary(bin []byte) {
+func saveFailedBinary(bin []byte, wat string) {
 	checksum := sha256.Sum256(bin)
 	checkSumStr := hex.EncodeToString(checksum[:])
 
-	path := fmt.Sprintf("%s/%s.wasm", failedCasesDir, checkSumStr)
-	f, err := os.Create(path)
+	dir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
+	testDataDir := path.Join(dir, failedCasesDir)
+	binaryPath := path.Join(testDataDir, fmt.Sprintf("%s.wasm", checkSumStr))
+	f, err := os.Create(binaryPath)
 	if err != nil {
 		panic(err)
 	}
@@ -116,10 +129,27 @@ func saveFailedBinary(bin []byte) {
 		panic(err)
 	}
 
+	watPath := path.Join(testDataDir, fmt.Sprintf("%s.wat", checkSumStr))
+	watF, err := os.Create(watPath)
+	if err != nil {
+		panic(err)
+	}
+
+	defer watF.Close()
+
+	_, err = watF.Write([]byte(wat))
+	if err != nil {
+		panic(err)
+	}
+
 	fmt.Printf(`
 
-Failed Wasm binary has been written as %[1]s.wasm
-To reproduce the failure, execute: WASM_BINARY_NAME=%[1]s.wasm go test wazerolib/...
+Failed Wasm binary has been written to %s 
+Failed Wasm Text has been written to %s
+To reproduce the failure, execute: WASM_BINARY_PATH=%s go test wazerolib/...
 
-`, checkSumStr)
+Failed WebAssembly Text:
+%s
+
+`, binaryPath, watPath, binaryPath, wat)
 }
