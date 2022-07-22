@@ -43,6 +43,8 @@ fn main() {
         );
     }
 
+    println!("cargo:rerun-if-changed=/Users/mathetake/wazero");
+
     // Ensures that we rebuild the library when the source code for wazero file has been changed.
     println!("cargo:rerun-if-changed={}", library_source_path);
     println!("cargo:rerun-if-changed={}/go.mod", wazero_fuzz_dir);
