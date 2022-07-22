@@ -10,6 +10,19 @@ fn main() {
     let library_out_path = format!("{}/libwazero.a", wazero_fuzz_lib_dir);
     let library_source_path = format!("{}/lib.go", wazero_fuzz_lib_dir);
 
+    // Parse the GOARCH from the --target argument passed to cargo.
+    let goarch = var("TARGET")
+        .map(|target| {
+            if target.contains("aarch64") {
+                "arm64"
+            } else if target.contains("x86") {
+                "amd64"
+            } else {
+                panic!("unsupported target {:?}", target)
+            }
+        })
+        .unwrap();
+
     // Build the wazero library via go build -buildmode c-archive....
     let mut command = process::Command::new("go");
     command.current_dir(&wazero_fuzz_lib_dir);
@@ -17,6 +30,8 @@ fn main() {
     command.args(&["-buildmode", "c-archive"]);
     command.args(&["-o", library_out_path.as_str()]);
     command.args(&[library_source_path.as_str()]);
+    command.env("GOARCH", goarch);
+    command.env("CGO_ENABLED", "1");
 
     let output = command.output().expect("failed to execute process");
 
