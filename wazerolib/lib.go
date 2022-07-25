@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
 )
 
 func main() {}
@@ -61,21 +62,72 @@ func run_wazero(binaryPtr uintptr, binarySize int, watPtr uintptr, watSize int) 
 			saveFailedBinary(wasmBin, wat)
 		}
 	}()
-
-	// Instantiate module.
-	_, compilerInstErr := compiler.InstantiateModuleFromBinary(ctx, wasmBin)
-	_, interpreterInstErr := interpreter.InstantiateModuleFromBinary(ctx, wasmBin)
-
-	err := ensureInstantiationError(compilerInstErr, interpreterInstErr)
+	compiledCompiled, err := compiler.CompileModule(ctx, wasmBin, wazero.NewCompileConfig())
 	if err != nil {
 		panic(err)
+	}
+
+	interpreterCompiled, err := interpreter.CompileModule(ctx, wasmBin, wazero.NewCompileConfig())
+	if err != nil {
+		panic(err)
+	}
+
+	// Instantiate module.
+	compilerMod, compilerInstErr := compiler.InstantiateModule(ctx, compiledCompiled, wazero.NewModuleConfig())
+	interpreterMod, interpreterInstErr := interpreter.InstantiateModule(ctx, interpreterCompiled, wazero.NewModuleConfig())
+
+	okToInvoke, err := ensureInstantiationError(compilerInstErr, interpreterInstErr)
+	if err != nil {
+		panic(err)
+	}
+
+	if okToInvoke {
+		if err = ensureInvocationResultMatch(compilerMod, interpreterMod, interpreterCompiled.ExportedFunctions()); err != nil {
+			panic(err)
+		}
 	}
 
 	failed = false
 	return
 }
 
-func ensureInstantiationError(compilerErr, interpErr error) error {
+func ensureInvocationResultMatch(compiledMod, interpreterMod api.Module, exportedFunctions map[string]api.FunctionDefinition) (err error) {
+	ctx := context.Background()
+	for name, def := range exportedFunctions {
+		cmpF := compiledMod.ExportedFunction(name)
+		intF := interpreterMod.ExportedFunction(name)
+
+		params := getDummyValues(def.ParamTypes())
+		cmpRes, cmpErr := cmpF.Call(ctx, params...)
+		intRes, intErr := intF.Call(ctx, params...)
+		if errMismatch := ensureInvocationError(cmpErr, intErr); errMismatch != nil {
+			panic(fmt.Sprintf("error mismatch on invoking %s: %v", name, errMismatch))
+		}
+
+		var matched = true
+		for i := range cmpRes {
+			matched = matched && cmpRes[i] == intRes[i]
+		}
+
+		if !matched {
+			err = fmt.Errorf("result mismatch on invoking '%s':\n\tinterpreter got: %v\n\tcompiler got: %v", name, intRes, cmpRes)
+		}
+	}
+	return
+}
+
+func getDummyValues(valueTypes []api.ValueType) (ret []uint64) {
+	for _, vt := range valueTypes {
+		if vt != 0x7b { // v128
+			ret = append(ret, 0)
+		} else {
+			ret = append(ret, 0, 0)
+		}
+	}
+	return
+}
+
+func ensureInvocationError(compilerErr, interpErr error) error {
 	if compilerErr == nil && interpErr == nil {
 		return nil
 	} else if compilerErr == nil && interpErr != nil {
@@ -92,16 +144,39 @@ func ensureInstantiationError(compilerErr, interpErr error) error {
 		interpErrMsg = interpErrMsg[:strings.Index(interpErrMsg, "\n")]
 	}
 
-	if !allowedErrorDuringInstantiation(compilerErrMsg) {
-		return fmt.Errorf("invalid erro occur with compiler: %v", compilerErr)
-	} else if !allowedErrorDuringInstantiation(interpErrMsg) {
-		return fmt.Errorf("invalid erro occur with interpreter: %v", interpErrMsg)
-	}
-
 	if compilerErrMsg != interpErrMsg {
 		return fmt.Errorf("error mismatch:\n\tinterpreter: %v\n\tcompiler: %v", interpErr, compilerErr)
 	}
 	return nil
+}
+
+func ensureInstantiationError(compilerErr, interpErr error) (okToInvoke bool, err error) {
+	if compilerErr == nil && interpErr == nil {
+		return true, nil
+	} else if compilerErr == nil && interpErr != nil {
+		return false, fmt.Errorf("compiler returned no error, but interpreter got: %w", interpErr)
+	} else if compilerErr != nil && interpErr == nil {
+		return false, fmt.Errorf("interpreter returned no error, but compiler got: %w", compilerErr)
+	}
+
+	compilerErrMsg, interpErrMsg := compilerErr.Error(), interpErr.Error()
+	if idx := strings.Index(compilerErrMsg, "\n"); idx >= 0 {
+		compilerErrMsg = compilerErrMsg[:strings.Index(compilerErrMsg, "\n")]
+	}
+	if idx := strings.Index(interpErrMsg, "\n"); idx >= 0 {
+		interpErrMsg = interpErrMsg[:strings.Index(interpErrMsg, "\n")]
+	}
+
+	if !allowedErrorDuringInstantiation(compilerErrMsg) {
+		return false, fmt.Errorf("invalid erro occur with compiler: %v", compilerErr)
+	} else if !allowedErrorDuringInstantiation(interpErrMsg) {
+		return false, fmt.Errorf("invalid erro occur with interpreter: %v", interpErrMsg)
+	}
+
+	if compilerErrMsg != interpErrMsg {
+		return false, fmt.Errorf("error mismatch:\n\tinterpreter: %v\n\tcompiler: %v", interpErr, compilerErr)
+	}
+	return false, nil
 }
 
 const failedCasesDir = "wazerolib/testdata"

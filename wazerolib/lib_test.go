@@ -1,10 +1,8 @@
-package main_test
+package main
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/tetratelabs/wazero"
@@ -25,52 +23,29 @@ func TestReRunFailedCase(t *testing.T) {
 	compiler := wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfigCompiler().WithWasmCore2())
 	interpreter := wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfigInterpreter().WithWasmCore2())
 
-	// Instantiate module.
-	_, compilerInstErr := compiler.InstantiateModuleFromBinary(ctx, wasmBin)
-	_, interpreterInstErr := interpreter.InstantiateModuleFromBinary(ctx, wasmBin)
-
-	err = ensureInstantiationError(compilerInstErr, interpreterInstErr)
+	// Compile module.
+	compiledCompiled, err := compiler.CompileModule(ctx, wasmBin, wazero.NewCompileConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
-}
 
-func ensureInstantiationError(compilerErr, interpErr error) error {
-	if compilerErr == nil && interpErr == nil {
-		return nil
-	} else if compilerErr == nil && interpErr != nil {
-		return fmt.Errorf("compiler returned no error, but interpreter got: %w", interpErr)
-	} else if compilerErr != nil && interpErr == nil {
-		return fmt.Errorf("interpreter returned no error, but compiler got: %w", compilerErr)
+	interpreterCompiled, err := interpreter.CompileModule(ctx, wasmBin, wazero.NewCompileConfig())
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	compilerErrMsg, interpErrMsg := compilerErr.Error(), interpErr.Error()
-	if idx := strings.Index(compilerErrMsg, "\n"); idx >= 0 {
-		compilerErrMsg = compilerErrMsg[:strings.Index(compilerErrMsg, "\n")]
-	}
-	if idx := strings.Index(interpErrMsg, "\n"); idx >= 0 {
-		interpErrMsg = interpErrMsg[:strings.Index(interpErrMsg, "\n")]
+	// Instantiate module.
+	compilerMod, compilerInstErr := compiler.InstantiateModule(ctx, compiledCompiled, wazero.NewModuleConfig())
+	interpreterMod, interpreterInstErr := interpreter.InstantiateModule(ctx, interpreterCompiled, wazero.NewModuleConfig())
+
+	okToInvoke, err := ensureInstantiationError(compilerInstErr, interpreterInstErr)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if !allowedErrorDuringInstantiation(compilerErrMsg) {
-		return fmt.Errorf("invalid erro occur with compiler: %v", compilerErr)
-	} else if !allowedErrorDuringInstantiation(interpErrMsg) {
-		return fmt.Errorf("invalid erro occur with interpreter: %v", interpErrMsg)
+	if okToInvoke {
+		if err = ensureInvocationResultMatch(compilerMod, interpreterMod, interpreterCompiled.ExportedFunctions()); err != nil {
+			t.Fatal(err)
+		}
 	}
-
-	if compilerErrMsg != interpErrMsg {
-		return fmt.Errorf("error mismatch:\n\tinterpreter: %v\n\tcompiler: %v", interpErr, compilerErr)
-	}
-	return nil
-}
-
-func allowedErrorDuringInstantiation(errMsg string) bool {
-	if strings.HasPrefix(errMsg, "data[") && strings.HasSuffix(errMsg, "]: out of bounds memory access") {
-		return true
-	}
-
-	if strings.HasPrefix(errMsg, "start function[") && strings.Contains(errMsg, "failed: wasm error:") {
-		return true
-	}
-	return false
 }
