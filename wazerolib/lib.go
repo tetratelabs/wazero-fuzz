@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"reflect"
@@ -93,7 +94,19 @@ func run_wazero(binaryPtr uintptr, binarySize int, watPtr uintptr, watSize int) 
 
 func ensureInvocationResultMatch(compiledMod, interpreterMod api.Module, exportedFunctions map[string]api.FunctionDefinition) (err error) {
 	ctx := context.Background()
+
+outer:
 	for name, def := range exportedFunctions {
+		resultTypes := def.ResultTypes()
+		for _, rt := range resultTypes {
+			switch rt {
+			case api.ValueTypeI32, api.ValueTypeI64, api.ValueTypeF32, api.ValueTypeF64:
+			default:
+				// For the sake of simplicity in the assertion, we only invoke the function with the basic types.
+				continue outer
+			}
+		}
+
 		cmpF := compiledMod.ExportedFunction(name)
 		intF := interpreterMod.ExportedFunction(name)
 
@@ -105,8 +118,27 @@ func ensureInvocationResultMatch(compiledMod, interpreterMod api.Module, exporte
 		}
 
 		var matched = true
-		for i := range cmpRes {
-			matched = matched && cmpRes[i] == intRes[i]
+		for i := 0; i < len(cmpRes); i++ {
+			switch resultTypes[i] {
+			case api.ValueTypeI32:
+				matched = matched && uint32(cmpRes[i]) == uint32(intRes[i])
+			case api.ValueTypeI64:
+				matched = matched && cmpRes[i] == intRes[i]
+			case api.ValueTypeF32:
+				fc, fi := math.Float32frombits(uint32(cmpRes[i])), math.Float32frombits(uint32(intRes[i]))
+				if fc != fc || fi != fi {
+					matched = matched && fi != fi && fc != fc
+				} else {
+					matched = matched && fc == fi
+				}
+			case api.ValueTypeF64:
+				fc, fi := math.Float64frombits(cmpRes[i]), math.Float64frombits(intRes[i])
+				if fc != fc || fi != fi {
+					matched = matched && fi != fi && fc != fc
+				} else {
+					matched = matched && fc == fi
+				}
+			}
 		}
 
 		if !matched {
