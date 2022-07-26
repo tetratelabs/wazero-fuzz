@@ -218,13 +218,13 @@ func saveFailedBinary(bin []byte, wat string) {
 	}
 
 	fmt.Printf(`
+Failed WebAssembly Text:
+%s
 
 Failed Wasm binary has been written to %s 
 Failed Wasm Text has been written to %s
 To reproduce the failure, execute: WASM_BINARY_PATH=%s go test wazerolib/...
 
-Failed WebAssembly Text:
-%s
 
-`, binaryPath, watPath, binaryPath, wat)
+`, wat, binaryPath, watPath, binaryPath)
 }
