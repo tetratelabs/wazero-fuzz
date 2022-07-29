@@ -30,6 +30,9 @@ fn run(data: &[u8]) -> Result<()> {
     config.max_table_elements = 1_000;
     config.table_max_size_required = true;
 
+    // Without canonicalization of NaNs, the results cannot be matched among engines.
+    config.canonicalize_nans = true;
+
     // Export all the things so that we can invoke them.
     config.export_everything = true;
 
@@ -54,7 +57,7 @@ fn run(data: &[u8]) -> Result<()> {
         );
     }
 
-    // We always return Ok as inside of run_wazero, we cause panic if the binary is interesting.
+    // We always return Ok as inside run_wazero, we cause panic if the binary is interesting.
     Ok(())
 }
 
