@@ -27,3 +27,17 @@ path = "fuzz_targets/basic.rs"
 test = false
 doc = false
 target = "aarch64-apple-darwin"
+
+[[bin]]
+name = "basic-x86_64-unknown-linux-gnu"
+path = "fuzz_targets/basic.rs"
+test = false
+doc = false
+target = "x86_64-unknown-linux-gnu"
+
+[[bin]]
+name = "basic-aarch64-unknown-linux-gnu"
+path = "fuzz_targets/basic.rs"
+test = false
+doc = false
+target = "aarch64-unknown-linux-gnu"
