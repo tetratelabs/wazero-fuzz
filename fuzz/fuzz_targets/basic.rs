@@ -30,6 +30,9 @@ fn run(data: &[u8]) -> Result<()> {
     config.max_table_elements = 1_000;
     config.table_max_size_required = true;
 
+    // max_instructions is set to 100 by default which seems a little bit smaller.
+    config.max_instructions = 5000;
+
     // Without canonicalization of NaNs, the results cannot be matched among engines.
     config.canonicalize_nans = true;
 
