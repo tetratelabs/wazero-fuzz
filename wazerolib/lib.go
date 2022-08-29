@@ -50,8 +50,8 @@ func run_wazero(binaryPtr uintptr, binarySize int, watPtr uintptr, watSize int) 
 	ctx := context.Background()
 
 	// Create two runtimes.
-	interpreter := wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfigInterpreter().WithWasmCore2())
-	compiler := wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfigCompiler().WithWasmCore2())
+	interpreter := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfigInterpreter().WithWasmCore2())
+	compiler := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfigCompiler().WithWasmCore2())
 
 	defer compiler.Close(ctx)
 	defer interpreter.Close(ctx)
