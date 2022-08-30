@@ -9,11 +9,11 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
-wasm-smith = "0.11.2"
-wasmprinter = "0.2.0"
+libfuzzer-sys = "0.4.3"
+wasm-smith = "0.11.4"
+wasmprinter = "0.2.39"
 
-# Note: having different bin target for each architecture in order to have separate corpus and articfacts.
+# Note: having different bin target for each architecture in order to have separate corpus and artifacts.
 [[bin]]
 name = "basic-x86_64-apple-darwin"
 path = "fuzz_targets/basic.rs"
