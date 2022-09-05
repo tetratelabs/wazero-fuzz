@@ -43,14 +43,13 @@ fn main() {
         );
     }
 
-    println!("cargo:rerun-if-changed=/Users/mathetake/wazero");
-
     // Ensures that we rebuild the library when the source code for wazero file has been changed.
     println!("cargo:rerun-if-changed={}", library_source_path);
     println!("cargo:rerun-if-changed={}/go.mod", wazero_fuzz_dir);
     println!("cargo:rerun-if-changed={}/go.sum", wazero_fuzz_dir);
 
     println!("cargo:rerun-if-changed=/Users/mathetake/wazero");
+    println!("cargo:rerun-if-changed=/home/mathetake/wazero");
 
     // Ensures that the linker can find the wazero library.
     println!("cargo:rustc-link-search={}", wazero_fuzz_lib_dir);
