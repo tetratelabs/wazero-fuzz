@@ -20,16 +20,16 @@ func TestReRunFailedCase(t *testing.T) {
 	// Choose the context to use for function calls.
 	ctx := context.Background()
 
-	compiler := wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfigCompiler().WithWasmCore2())
-	interpreter := wazero.NewRuntimeWithConfig(wazero.NewRuntimeConfigInterpreter().WithWasmCore2())
+	compiler := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfigCompiler())
+	interpreter := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfigInterpreter())
 
 	// Compile module.
-	compiledCompiled, err := compiler.CompileModule(ctx, wasmBin, wazero.NewCompileConfig())
+	compiledCompiled, err := compiler.CompileModule(ctx, wasmBin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	interpreterCompiled, err := interpreter.CompileModule(ctx, wasmBin, wazero.NewCompileConfig())
+	interpreterCompiled, err := interpreter.CompileModule(ctx, wasmBin)
 	if err != nil {
 		t.Fatal(err)
 	}

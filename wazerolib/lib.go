@@ -29,10 +29,10 @@ func allowedErrorDuringInstantiation(errMsg string) bool {
 	return false
 }
 
-//export run_wazero
-//
 // run_wazero ensures that the behavior is the same between the compiler and the interpreter for any given
 // binary.
+//
+//export run_wazero
 func run_wazero(binaryPtr uintptr, binarySize int, watPtr uintptr, watSize int) {
 	wasmBin := *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
 		Data: binaryPtr,
@@ -50,8 +50,8 @@ func run_wazero(binaryPtr uintptr, binarySize int, watPtr uintptr, watSize int) 
 	ctx := context.Background()
 
 	// Create two runtimes.
-	interpreter := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfigInterpreter().WithWasmCore2())
-	compiler := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfigCompiler().WithWasmCore2())
+	interpreter := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfigInterpreter())
+	compiler := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfigCompiler())
 
 	defer compiler.Close(ctx)
 	defer interpreter.Close(ctx)
@@ -62,12 +62,12 @@ func run_wazero(binaryPtr uintptr, binarySize int, watPtr uintptr, watSize int) 
 			saveFailedBinary(wasmBin, wat)
 		}
 	}()
-	compiledCompiled, err := compiler.CompileModule(ctx, wasmBin, wazero.NewCompileConfig())
+	compiledCompiled, err := compiler.CompileModule(ctx, wasmBin)
 	if err != nil {
 		panic(err)
 	}
 
-	interpreterCompiled, err := interpreter.CompileModule(ctx, wasmBin, wazero.NewCompileConfig())
+	interpreterCompiled, err := interpreter.CompileModule(ctx, wasmBin)
 	if err != nil {
 		panic(err)
 	}
